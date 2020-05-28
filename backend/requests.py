@@ -2,6 +2,9 @@ import sqlite3
 import datetime
 from definitions import Date
 from passlib.hash import pbkdf2_sha256 as sha256
+import chess.pgn
+import io
+from pgn import OverriddenGameBuilder
 
 def getUser(id):
     conn = sqlite3.connect('database.db')
@@ -61,11 +64,11 @@ def authenticate(name,password):
     c.execute("select id,name,password from users where name=?", (name,))
     data = c.fetchone()
     conn.close()
-    if data==None: return None
+    if data==None: return "Name"
     id = data[0]
     hash = data[2]
     if sha256.verify(password,hash): return id
-    return None
+    return "Password"
 
 def updateDate(id):
     day = datetime.date.today().day
@@ -78,10 +81,10 @@ def updateDate(id):
     c.execute("update users set lastseen=? where id=?", arguments)
     conn.commit()
     conn.close()
-def checkForDuplicates(name,email="NULL"):
+def checkForDuplicates(field,value):
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-    c.execute("select name from users where name=? or email=?", (name,email))
+    c.execute("select "+field+" from users where "+field+"=?", (value,))
     result=c.fetchone()
     conn.close()
     if result==None: return True
@@ -104,17 +107,22 @@ def register(name,password,email):
     conn.close()
     return id
 
-def getReplayList(id):
+def getReplayList(id,args):
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-    c.execute("select * from games where white=? or black=?",(id,id))
+    c.execute("select * from games where white=? or black=? or uploader=?",(id,id,id))
     list = c.fetchall()
     conn.close()
     return list
-def getUserList():
+def getUserList(args):
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-    c.execute("select name,id from users")
+    name=''
+    if 'name' in args:
+        name='%'+args['name']+'%'
+    if name=='':
+        c.execute("select name,id,lastseen,elo_standard,elo_blitz,elo_lightning from users")
+    else: c.execute("select name,id,lastseen,elo_standard,elo_blitz,elo_lightning from users where name like ?",(name,))
     list = c.fetchall()
     conn.close()
     return list
@@ -126,12 +134,29 @@ def getReplay(id):
     conn.close()
     if replay!=None: return replay[0]
     return None
-def postResult(white_id,black_id,date,outcome,pgn,time="NULL",time_add="NULL"):
+def postReplay(pgn,time="NULL",time_add="NULL",white_id="NULL",black_id="NULL",uploader_id="NULL"):
+    game=chess.pgn.read_game(io.StringIO(pgn),Visitor=OverriddenGameBuilder)
+    for tag in ['Event','Site','Date','Round','White','Black','Result']:
+        if tag not in game.headers:
+            return "Missing Tag: "+tag
+    event=game.headers['Event']
+    site=game.headers['Site']
+    date=game.headers['Date']
+    round=game.headers['Round']
+    white_name=game.headers['White']
+    black_name=game.headers['Black']
+    outcome=game.headers['Result']
+    pgn=str(game)
+    print(pgn)
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-    c.execute("insert into games(white,black,date,outcome,time,time_add,pgn) values(?,?,?,?,?,?,?)", (white_id,black_id,str(date),outcome,time,time_add,pgn))
+    c.execute("insert into games(event,site,date,round,white_name,black_name,result,uploader,white,black,time,time_add,pgn) values(?,?,?,?,?,?,?,?,?,?,?,?,?)", (event,site,str(date),round,white_name,black_name,outcome,uploader_id,white_id,black_id,time,time_add,pgn))
+    c.execute("select id from games where pgn=?",(pgn,))
+    id=c.fetchone()
     conn.commit()
     conn.close()
+    if id!=None: return id[0]
+    return None
 def removeReplays(id):
     conn = sqlite3.connect('database.db')
     c = conn.cursor()

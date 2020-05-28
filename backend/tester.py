@@ -1,7 +1,7 @@
 import unittest
-from requests import getId, removeUser, register, postResult, removeReplays, getReplayList
+from requests import getId, removeUser, register, postReplay, removeReplays, getReplayList
 from resources import Users,Register
-from server import app
+from app import app
 import json
 import offers
 from definitions import Offer,Date
@@ -263,8 +263,8 @@ class TestReplays(unittest.TestCase):
         pgnFile=open("example.pgn",'r')
         pgn=pgnFile.read()
         pgnFile.close()
-        postResult(id, id2, date, "1-0", pgn)
-        postResult(id+10, id2, date, "1/2-1/2", pgn)
+        postReplay(pgn,white_id=id, black_id=id2)
+        postReplay(pgn,white_id=id+10, black_id=id2)
 
     def tearDown(self):
         id = getId('Example')

@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS, cross_origin
 import flask_jwt_extended
 from flask_restful import Resource, Api
 from resources import *
@@ -6,8 +7,8 @@ from resources import *
 
 
 
-
 app = Flask(__name__)
+CORS(app)
 api = Api(app)
 app.config['JWT_SECRET_KEY'] = 'jwt-secret-string'
 jwt=flask_jwt_extended.JWTManager(app)

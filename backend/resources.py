@@ -1,9 +1,13 @@
-from flask_restful import Resource, reqparse
+from flask_restful import Resource, reqparse,request
 import requests
 import offers
 from flask_jwt_extended import (create_access_token, create_refresh_token, get_jwt_identity, verify_jwt_in_request)
 from definitions import Offer
 from flask_jwt_extended.exceptions import NoAuthorizationError,InvalidHeaderError
+from jwt.exceptions import ExpiredSignatureError
+from werkzeug.datastructures import ImmutableMultiDict
+from sqlite3 import IntegrityError
+import chess.pgn
 
 class UserList(Resource):
     def get(self):
@@ -13,7 +17,10 @@ class UserList(Resource):
             return {'message': "Unauthorized attempt"}, 401
         except InvalidHeaderError:
             return {'message': "Authorization error"}, 401
-        userList=requests.getUserList()
+        except ExpiredSignatureError:
+            return {'message': "Signature expired"}, 401
+        args=request.args.to_dict()
+        userList=requests.getUserList(args)
         return {'message':"Success!",'list':userList},200
 class Users(Resource):
     def get(self,id):
@@ -29,6 +36,8 @@ class Users(Resource):
             return {'message':"Unauthorized attempt"}, 401
         except InvalidHeaderError:
             return {'message':"Authorization error"}, 401
+        except ExpiredSignatureError:
+            return {'message': "Signature expired"}, 401
         userData = requests.getUser(id)
         if userData == None:
             return {'message': "User doesn't exist!"}, 404
@@ -40,7 +49,7 @@ class Users(Resource):
             parser.add_argument('password', type=str,required=False, location='form',help='Invalid password')
             args = parser.parse_args()
 
-            flag = requests.checkForDuplicates(args['name'])
+            flag = requests.checkForDuplicates("name",args['name'])
             if flag == False:
                 return {'message': "Name taken"}, 400
 
@@ -55,6 +64,8 @@ class Users(Resource):
             return {'message': "Unauthorized attempt"}, 401
         except InvalidHeaderError:
             return {'message': "Authorization error"}, 401
+        except ExpiredSignatureError:
+            return {'message': "Signature expired"}, 401
         userData = requests.getUser(id)
         if userData == None:
             return {'message': "User doesn't exist!"}, 404
@@ -66,36 +77,61 @@ class Users(Resource):
 
 class Login(Resource):
     def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', required=False, location='form',help='Invalid name')
-        parser.add_argument('password', type=str,required=False, location='form',help='Invalid password')
-        args = parser.parse_args()
-        print(args)
+#         parser = reqparse.RequestParser()
+#         parser.add_argument('name',type=str, required=True, location='form',help='Invalid name')
+#         parser.add_argument('password',type=str,required=True, location='form',help='Invalid password')
+#         args = parser.parse_args()
+        args=request.form.to_dict()
+        if isinstance(args['name'],str)==False:
+            return {'message':"Invalid username!",'where':"username"}, 400
+        if isinstance(args['password'],str)==False:
+            return {'message':"Invalid Password!",'where':"password"}, 400
         id=requests.authenticate(args['name'],args['password'])
-        if id == None:
-            return {'message': {'message':"Wrong name or password"}}, 400
-        else:
-            requests.updateDate(id)
-            access_token = create_access_token(identity=id)
-            refresh_token = create_refresh_token(identity=id)
-
-            return {'message':"Successfully logged in",'id':id,'access_token':access_token,'refresh_token':refresh_token},201
+        if id == "Name":
+            return {'message':"User doesn't exist!",'where':"username"}, 400
+        elif id == "Password":
+            return {'message':"Password incorrect!",'where':"password"}, 400
+        requests.updateDate(id)
+        access_token = create_access_token(identity=id)
+        refresh_token = create_refresh_token(identity=id)
+        return {'message':"Successfully logged in",'id':id,'token':access_token},201
 
 class Register(Resource):
     def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str,required=True, location='form',help='Invalid name')
-        parser.add_argument('password', type=str,required=True, location='form',help='Invalid password')
-        parser.add_argument('email', type=str,required=True, location='form',help='Invalid email')
-        args = parser.parse_args()
+#         parser = reqparse.RequestParser()
+#         parser.add_argument('name', type=str,required=True, location='form',help='Invalid name')
+#         parser.add_argument('password', type=str,required=True, location='form',help='Invalid password')
+#         parser.add_argument('email', type=str,required=True, location='form',help='Invalid email')
+#         args = parser.parse_args()
+        args=request.form.to_dict()
+        if isinstance(args['name'],str)==False:
+            return {'message':"Invalid value!",'where':"username"}, 400
+        if len(args['name'])<6:
+            return {'message':"Name too short!",'where':"username"}, 400
+        if requests.checkForDuplicates("name",args['name']) == False:
+            return {'message':"Name taken",'where':"username"}, 400
 
-        flag = requests.checkForDuplicates(args['name'], args['email'])
-        if flag == False:
-            return {'message': {"taken":"Name or e-mail taken"}}, 400
+        if isinstance(args['password'],str)==False:
+            return {'message':"Invalid value!",'where':"password"}, 400
+        if len(args['password'])<6:
+            return {'message':"Password too short!",'where':"password"}, 400
+
+        if isinstance(args['2ndpass'],str)==False:
+            return {'message':"Invalid value!",'where':"2ndpass"}, 400
+        if args['2ndpass']!=args['password']:
+            return {'message':"Passwords don't match!",'where':"2ndpass"}, 400
+
+
+        if isinstance(args['email'],str)==False:
+            return {'message':"Invalid value!",'where':"email"}, 400
+        if args['email'].find('@')==-1 or args['email'].find('.')==-1:
+            return {'message':"Incorrect E-mail!",'where':"email"}, 400
+        if requests.checkForDuplicates("email",args['email']) == False:
+            return {'message':"E-mail taken",'where':"email"}, 400
+        
         id=requests.register(args['name'],args['password'],args['email'])
         access_token = create_access_token(identity=id)
-        refresh_token = create_refresh_token(identity=id)
-        return {'message':"Successfully registered",'id':id,'access_token':access_token,'refresh_token':refresh_token},201
+        return {'message':"Successfully registered",'id':id,'token':access_token},201
 
 class OfferList(Resource):
     def get(self):
@@ -105,6 +141,8 @@ class OfferList(Resource):
             return {'message': "Unauthorized attempt"}, 401
         except InvalidHeaderError:
             return {'message': "Authorization error"}, 401
+        except ExpiredSignatureError:
+            return {'message': "Signature expired"}, 401
         parser = reqparse.RequestParser()
         parser.add_argument('owner', type=str, location='args')
         parser.add_argument('min_time', type=int, location='args')
@@ -132,6 +170,8 @@ class OfferList(Resource):
             return {'message': "Unauthorized attempt"}, 401
         except InvalidHeaderError:
             return {'message': "Authorization error"}, 401
+        except ExpiredSignatureError:
+            return {'message': "Signature expired"}, 401
         owner_id=get_jwt_identity()
         parser = reqparse.RequestParser()
         parser.add_argument('time', type=int,required=False, location='form',help="Invalid argument")
@@ -151,6 +191,8 @@ class Offers(Resource):
             return {'message': "Unauthorized attempt"}, 401
         except InvalidHeaderError:
             return {'message': "Authorization error"}, 401
+        except ExpiredSignatureError:
+            return {'message': "Signature expired"}, 401
         for offer in offers.offerList:
             if str(offer.id) == str(id):
                 return {'message': "Success!",'offer':offer.dict()}, 200
@@ -163,6 +205,8 @@ class Offers(Resource):
             return {'message': "Unauthorized attempt"}, 401
         except InvalidHeaderError:
             return {'message': "Authorization error"}, 401
+        except ExpiredSignatureError:
+            return {'message': "Signature expired"}, 401
         for offer in offers.offerList:
             if str(offer.id) == str(id):
                 if str(get_jwt_identity())==str(offer.owner_id):
@@ -179,8 +223,37 @@ class ReplayList(Resource):
             return {'message': "Unauthorized attempt"}, 401
         except InvalidHeaderError:
             return {'message': "Authorization error"}, 401
-        replayList=requests.getReplayList(get_jwt_identity())
+        except ExpiredSignatureError:
+            return {'message': "Signature expired"}, 401
+        args=request.args.to_dict()
+        id=get_jwt_identity()
+        replayList=requests.getReplayList(id,args)
         return {'message':"Success!",'list':replayList},200
+    def post(self):
+        try:
+            verify_jwt_in_request()
+        except NoAuthorizationError:
+            return {'message': "Unauthorized attempt"}, 401
+        except InvalidHeaderError:
+            return {'message': "Authorization error"}, 401
+        except ExpiredSignatureError:
+            return {'message': "Signature expired"}, 401
+        args=request.form.to_dict()
+        if isinstance(args['pgn'],str)==False:
+            return {'message':"Invalid argument!","where":"else"}, 400
+        if len(args['pgn'])<1:
+            return {'message':"Paste PGN file!","where":"text"}, 400
+        try:
+            id=requests.postReplay(pgn=args['pgn'],uploader_id=get_jwt_identity())
+        except IntegrityError:
+            return {'message':"PGN incorrect or identical one was already uploaded!","where":"text"}, 400
+        except ValueError:
+            return {'message':"PGN incorrect!","where":"text"}, 400
+        if isinstance(id,str) and "Missing Tag: " in id:
+            return {'message':id,"where":"text"}, 400
+        if id==None:
+            return {'message':'It shouldn\'t happen!'}, 500
+        return {'message': "Success!",'id':id}, 201
 class Replays(Resource):
     def get(self,id):
         try:
@@ -189,6 +262,8 @@ class Replays(Resource):
             return {'message': "Unauthorized attempt"}, 401
         except InvalidHeaderError:
             return {'message': "Authorization error"}, 401
+        except ExpiredSignatureError:
+            return {'message': "Signature expired"}, 401
         replay=requests.getReplay(id)
         if replay==None:
             return {'message': "Replay not found!"}, 404
