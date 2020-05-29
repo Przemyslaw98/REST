@@ -4,7 +4,6 @@ import {getReplayList} from './requests';
 import {useHistory} from "react-router-dom";
 import Pagination from '@material-ui/lab/Pagination';
 import queryString from 'query-string';
-import TextField from "@material-ui/core/TextField";
 import Button from "@material-ui/core/Button";
 import Grid from "@material-ui/core/Grid";
 

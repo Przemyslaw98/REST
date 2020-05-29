@@ -7,7 +7,7 @@ import queryString from 'query-string';
 import TextField from "@material-ui/core/TextField";
 import Button from "@material-ui/core/Button";
 import Grid from "@material-ui/core/Grid";
-import Link from "@material-ui/core/Link";
+import Typography from '@material-ui/core/Typography';
 
 const useStyles = makeStyles((theme) => ({
     root: {
@@ -38,7 +38,7 @@ export const Users = () => {
         var string='';
         if(username!=='')
             string+='name='+username;
-        if(string!='')
+        if(string!=='')
             string='?'+string;
         history.push('/users'+string);
         setQuery(queryString.parse(string))
@@ -66,13 +66,7 @@ export const Users = () => {
                     Last Seen
                 </Grid>
                 <Grid item xs>
-                    Elo Standard
-                </Grid>
-                <Grid item xs>
-                    Elo Blitz
-                </Grid>
-                <Grid item xs>
-                    Elo Lightning
+                    Elo rating
                 </Grid>
                 <Grid item xs>
 

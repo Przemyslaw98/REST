@@ -28,7 +28,7 @@ export const OtherError= () => {
     const classes = useStyles();
     return (
         <div className={classes.root}>
-            UnknownError!
+            Unknown Error! It shouldn't happen unless backend API is not running.
         </div>
     );
 }

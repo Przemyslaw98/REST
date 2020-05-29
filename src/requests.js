@@ -56,6 +56,9 @@ export function register(username,password,secondpass,email,setOutput,history,er
                         break;
                     case 'email':
                         location=[errorHooks.setMailError,errorHooks.setMsgMail]
+                        break;
+                    default:
+                        break;
                 }
                 location[0](true);
                 location[1](error.response['data']['message']);
@@ -88,6 +91,9 @@ export function login(username,password,setOutput,history,errorHooks){
                         break;
                     case 'password':
                         location=[errorHooks.setPassError,errorHooks.setMsgPass]
+                        break;
+                    default:
+                        break;
                 }
                 location[0](true);
                 location[1](error.response['data']['message']);
@@ -119,13 +125,7 @@ export function getUserList(query,setUserList,history,setRange,page,setListFragm
                             {user[2]}
                         </Grid>
                         <Grid item xs>
-                            {user[3]}
-                        </Grid>
-                        <Grid item xs>
-                            {user[4]}
-                        </Grid>
-                        <Grid item xs>
-                            {user[5]}
+                            {user[3]} / {user[4]} / {user[5]}
                         </Grid>
                         <Grid item xs>
                             <Link
@@ -175,7 +175,7 @@ export function postReplay(pgn,history,setError,setMsg){
         });
 
 }
-export function getReplay(setPgn,history,id,board,setMoves,setPosition){
+export function getReplay(setPGN,history,id,setFENs,setPosition){
     var headers={};
     headers['Content-Type']='application/x-www-form-urlencoded';
     headers['Access-Control-Allow-Origin']='*';
@@ -183,13 +183,18 @@ export function getReplay(setPgn,history,id,board,setMoves,setPosition){
         headers['Authorization']='Bearer '+localStorage.getItem('token')
     axios.get('/replays/'+id,{headers:headers})
         .then(res => {
+            const { Chess } = require('./chess.js')
+            const board=new Chess();
             const pgn=res['data']['replay'];
-            setPgn(pgn);
+            setPGN(pgn);
             board.load_pgn(pgn);
-            setMoves(board.history({verbose:true}));
-            const moves=(board.history({verbose:true}));
-            while(board.undo()!==null);
+            var FENlist=[board.fen()];
+            while(board.undo()!==null)
+                FENlist.push(board.fen());
+            FENlist=FENlist.reverse();
+            setFENs(FENlist);
             setPosition(board.fen());
+            console.log(pgn);
         })
         .catch(error => {
             if(error.response.status===404)
@@ -214,7 +219,6 @@ export function getReplayList(query,setReplayList,history,setRange,page,setListF
             for(var i=0;i<res['data']['list'].length;i++) {
                 const replay=res['data']['list'][i];
                 const link="/replays/"+replay[0];
-                const name=replay[9]+' vs '+replay[10]+'\t'
                 replaysList.push(
                     <Grid container>
                         <Grid item xs={6}>

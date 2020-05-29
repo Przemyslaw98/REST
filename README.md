@@ -1,3 +1,7 @@
+Index number: 299760
+
+(to make testing easier it's possible to log in using empty username and password.)
+
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts
