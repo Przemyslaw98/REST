@@ -4,6 +4,70 @@ import React from 'react';
 import Typography from '@material-ui/core/Typography';
 import Grid from '@material-ui/core/Grid';
 
+export function changePassword(oldpass,newpass,secondpass,errorHooks,id,history,close){
+    errorHooks.one(false);
+    errorHooks.two(false);
+    errorHooks.three(false);
+    errorHooks.msg1('');
+    errorHooks.msg2('');
+    errorHooks.msg3('');
+    if(newpass.length<6){
+        errorHooks.two(true);
+        errorHooks.msg2('Password too short!');
+        return;
+    }
+    if(secondpass!==newpass){
+        errorHooks.three(true);
+        errorHooks.msg3('Passwords do not match!');
+        return;
+    }
+    const args=new URLSearchParams();
+    args.append('oldpass',oldpass);
+    args.append('newpass',newpass);
+    var headers={};
+    headers['Content-Type']='application/x-www-form-urlencoded';
+    headers['Access-Control-Allow-Origin']='*';
+    if(localStorage.getItem('token')!=null)
+        headers['Authorization']='Bearer '+localStorage.getItem('token')
+    axios.put('/users/'+id,args,{headers:headers})
+        .then(res => {
+            if(res['data']['message']==='success')
+                close();
+    })
+        .catch(error => {
+            if(error.response.status===401)
+                history.push('/authorization_error');
+            else if(error.response.status===404)
+                history.push('/not_found');
+            else if(error.response.status===403) {
+                if (error.response['data']['where'] === 'password') {
+                    errorHooks.one(true);
+                    errorHooks.msg1("Wrong password!");
+                } else history.push('/error');
+            }
+            else history.push('/error');
+    });
+}
+export function removeUser(id,history){
+    var headers={};
+    headers['Content-Type']='application/x-www-form-urlencoded';
+    headers['Access-Control-Allow-Origin']='*';
+    if(localStorage.getItem('token')!=null)
+        headers['Authorization']='Bearer '+localStorage.getItem('token')
+    axios.delete('/users/'+id,{headers:headers})
+        .then(res => {
+                if(res['data']['message']==="Removed succesfully!")
+                    history.push('/logout');
+        })
+        .catch(error => {
+            if(error.response.status===401)
+                history.push('/authorization_error');
+            else if(error.response.status===404)
+                history.push('/not_found');
+            else history.push('/error');
+        })
+
+}
 export function register(username,password,secondpass,email,setOutput,history,errorHooks){
     errorHooks.setNameError(false);
     errorHooks.setPassError(false);
@@ -40,6 +104,7 @@ export function register(username,password,secondpass,email,setOutput,history,er
         .then(res => {
             setOutput(res['data']['message']);
             localStorage.setItem('token',res['data']['token']);
+            history.push('/profile');
         })
         .catch(error => {
             if(error.response.status===400) {
@@ -81,6 +146,7 @@ export function login(username,password,setOutput,history,errorHooks){
         .then(res => {
             setOutput(res['data']['message']);
             localStorage.setItem('token',res['data']['token']);
+            history.push('/profile');
         })
         .catch(error => {
             if(error.response.status===400) {
@@ -118,21 +184,23 @@ export function getUserList(query,setUserList,history,setRange,page,setListFragm
                 const user=res['data']['list'][i];
                 usersList.push(
                     <Grid container>
-                        <Grid item xs>
-                            {user[0]}
+                        <Grid item xs={6} sm>
+                            <Typography variant='body1'>{user[0]}</Typography>
                         </Grid>
-                        <Grid item xs>
-                            {user[2]}
+                        <Grid item xs={6} sm>
+                            <Typography variant='body1'>{user[2]}</Typography>
                         </Grid>
-                        <Grid item xs>
-                            {user[3]} / {user[4]} / {user[5]}
+                        <Grid item xs={6} sm>
+                            <Typography variant='body1'>{user[3]} / {user[4]} / {user[5]}</Typography>
                         </Grid>
-                        <Grid item xs>
-                            <Link
-                                href={link}
-                                onClick={(event)=>{event.preventDefault();history.push(link)}}>
-                                View Profile
-                            </Link>
+                        <Grid item xs={6} sm>
+                            <Typography variant='body1'>
+                                <Link
+                                    href={link}
+                                    onClick={(event)=>{event.preventDefault();history.push(link)}}>
+                                    View Profile
+                                </Link>
+                            </Typography>
                         </Grid>
                         <br/>
                     </Grid>
@@ -221,23 +289,25 @@ export function getReplayList(query,setReplayList,history,setRange,page,setListF
                 const link="/replays/"+replay[0];
                 replaysList.push(
                     <Grid container>
-                        <Grid item xs={6}>
-                            {replay[9]} vs {replay[10]}
+                        <Grid item  xs={12} sm={8} md={6}>
+                            <Typography variant='body1'>{replay[9]} vs {replay[10]}</Typography>
                         </Grid>
-                        <Grid item xs>
-                            {replay[4]}
+                        <Grid item xs={12} sm={4} md>
+                            <Typography variant='body1'>{replay[4]}</Typography>
                         </Grid>
-                        <Grid item xs>
-                            {replay[3]}
+                        <Grid item xs={12} sm={8} md>
+                            <Typography variant='body1'>{replay[3]}</Typography>
                         </Grid>
-                        <Grid item xs>
-                            <Link
-                                href={link}
-                                onClick={(event)=>{event.preventDefault();history.push(link)}}>
-                                View Replay
-                            </Link>
+                        <Grid item xs={12} sm={4} md>
+                            <Typography variant='body1'>
+                                <Link
+                                    href={link}
+                                    onClick={(event)=>{event.preventDefault();history.push(link)}}>
+                                    View Replay
+                                </Link>
+                            </Typography>
                         </Grid>
-                        <br/><br/>
+                        <br/><br/><br/><br/>
                     </Grid>
                 );
             }
@@ -252,7 +322,91 @@ export function getReplayList(query,setReplayList,history,setRange,page,setListF
         })
 
 }
-export function getUser(setOutput,history,id){
+export function postOffer(history,setOutput,time,timeAdd,color){
+    var headers={};
+    headers['Content-Type']='application/x-www-form-urlencoded';
+    headers['Access-Control-Allow-Origin']='*';
+    if(localStorage.getItem('token')!=null)
+        headers['Authorization']='Bearer '+localStorage.getItem('token')
+    const args=new URLSearchParams();
+    args.append('time',time);
+    args.append('time_add',timeAdd);
+    args.append('color',color);
+    axios.post('/offers',args,{headers: headers})
+        .then(res => {
+            setOutput(res['data']['message']);
+            console.log(res['data']['offer'])
+        })
+        .catch(error => {
+            if(error.response.status===401)
+                history.push('/authorization_error');
+            else history.push('/error');
+        });
+}
+export function getOfferList(query,setOfferList,history,setRange,page,setListFragment){
+    var headers={};
+    var string='';
+    if(query!=='')
+        string='?'+query;
+    headers['Content-Type']='application/x-www-form-urlencoded';
+    headers['Access-Control-Allow-Origin']='*';
+    if(localStorage.getItem('token')!=null)
+        headers['Authorization']='Bearer '+localStorage.getItem('token')
+    axios.get('/offers'+string,{headers:headers})
+        .then(res => {
+            var offerList=[];
+            for(var i=0;i<res['data']['list'].length;i++) {
+                const offer=res['data']['list'][i];
+                const link="/offers/"+offer['id'];
+                var time='None'
+                if(offer['time']!==null) {
+                    time=Math.floor(offer['time']/60)+':'+(offer['time']%60).toString().padStart(2, "0");
+                    if(offer['time_add']!==null)
+                        time+='+'+offer['time_add']+'s/move';
+                }
+                offerList.push(
+                    <Grid container>
+                        <Grid item xs={4} sm>
+                            <Typography variant='body1'>{offer['owner_name']}</Typography>
+                        </Grid>
+                        <Grid item xs={4} sm>
+                            <Typography variant='body1'>{offer['type']}</Typography>
+                        </Grid>
+                        <Grid item xs={4} sm>
+                            <Typography variant='body1'>{offer['elo']}</Typography>
+                        </Grid>
+                        <Grid item xs={4} sm>
+                            <Typography variant='body1'>{offer['color']}</Typography>
+                        </Grid>
+                        <Grid item xs={4} sm>
+                            <Typography variant='body1'>{time}</Typography>
+                        </Grid>
+                        <Grid item xs={4} sm>
+                            <Typography variant='body1'>
+                                <Link
+                                    href={link}
+                                    onClick={(event)=>{event.preventDefault();history.push(link)}}>
+                                    View Offer
+                                </Link>
+                            </Typography>
+                        </Grid>
+                        <br/><br/>
+                    </Grid>
+                );
+            }
+            setOfferList(offerList);
+            setRange(Math.max(1,Math.ceil(offerList.length/10)));
+            setListFragment(offerList.slice((page-1)*10,page*10));
+        })
+        .catch(error => {
+            console.log(error);
+            if(error.response.status===401)
+                history.push('/authorization_error');
+            else history.push('/error');
+        })
+
+}
+export function getUser(setData,history,id,setUsername){
     var headers={};
     headers['Content-Type']='application/x-www-form-urlencoded';
     headers['Access-Control-Allow-Origin']='*';
@@ -260,25 +414,15 @@ export function getUser(setOutput,history,id){
         headers['Authorization']='Bearer '+localStorage.getItem('token')
     axios.get('/users/'+id,{headers:headers})
         .then(res => {
-            var userData={
-                name:res['data']['userdata']['Name'],
+            const userData={
                 lastSeen:res['data']['userdata']['Last Seen'],
                 registered:res['data']['userdata']['Registered'],
                 eloS:res['data']['userdata']['EloStandard'],
                 eloB:res['data']['userdata']['EloBlitz'],
                 eloL:res['data']['userdata']['EloLightning'],
             };
-            const output=
-                <div align="right">
-                    <Typography variant="h4">{userData.name}</Typography>
-                    <Typography variant="body1">Registered: {userData.registered}</Typography>
-                    <Typography variant="body1">Last Seen: {userData.lastSeen}</Typography><br/>
-                    <Typography variant="body1">Elo rating:</Typography>
-                    <Typography variant="body2">Standard: {userData.eloS}</Typography>
-                    <Typography variant="body2">Blitz: {userData.eloB}</Typography>
-                    <Typography variant="body2">Lightning: {userData.eloL}</Typography>
-                </div>
-            setOutput(output);
+            setUsername(res['data']['userdata']['Name']);
+            setData(userData);
         })
         .catch(error => {
             if(error.response.status===404)

@@ -12,6 +12,7 @@
     "@testing-library/user-event": "^7.2.1",
     "axios": "^0.19.2",
     "chess.js": "^0.10.3",
+    "jwt-decode": "^2.2.0",
     "pgn-parser": "^2.0.0",
     "react": "^16.13.1",
     "react-chess": "^1.1.1",

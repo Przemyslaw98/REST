@@ -29,16 +29,18 @@ def getStats(id):
     stats_lightning = c.fetchone()[1:]
     conn.close()
     return (stats_standard,stats_blitz,stats_lightning)
-def editUser(id,name=None,password=None):
+def changePassword(id,oldpass,newpass):
+    name=getName(id)
+    check=authenticate(name,oldpass)
+    if check=="Password":
+        return False
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-    if name != None:
-        c.execute("update users set name=? where id=?", (name, id))
-    if password != None:
-        hash=sha256.hash(password)
-        c.execute("update users set password=? where id=?", (hash, id))
+    hash=sha256.hash(newpass)
+    c.execute("update users set password=? where id=?", (hash, id))
     conn.commit()
     conn.close()
+    return True
 def removeUser(id):
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
@@ -57,7 +59,15 @@ def getId(name):
     if data!=None:
         return data[0]
     return None
-
+def getName(id):
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute("select name from users where id=?", (id,))
+    data = c.fetchone()
+    conn.close()
+    if data!=None:
+        return data[0]
+    return None
 def authenticate(name,password):
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
@@ -110,7 +120,25 @@ def register(name,password,email):
 def getReplayList(id,args):
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-    c.execute("select * from games where white=? or black=? or uploader=?",(id,id,id))
+    request="select * from games"
+    params=[]
+    if 'name' in args or ('own' in args and args['own'] in (1,'1','true',"True","TRUE")):
+        request+=' where'
+        name=''
+        if 'name' in args:
+            request+= ' (white_name like ? or black_name like ?)'
+            name='%'+args['name']+'%'
+            params.append(name)
+            params.append(name)
+
+        if 'own' in args and args['own'] in (1,'1','true',"True","TRUE"):
+            if 'name' in args:
+                request+=' and'
+            request+=" (white=? or black=? or uploader=?)"
+            params.append(id)
+            params.append(id)
+            params.append(id)
+    c.execute(request,tuple(params))
     list = c.fetchall()
     conn.close()
     return list
@@ -147,7 +175,6 @@ def postReplay(pgn,time="NULL",time_add="NULL",white_id="NULL",black_id="NULL",u
     black_name=game.headers['Black']
     outcome=game.headers['Result']
     pgn=str(game)
-    print(pgn)
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
     c.execute("insert into games(event,site,date,round,white_name,black_name,result,uploader,white,black,time,time_add,pgn) values(?,?,?,?,?,?,?,?,?,?,?,?,?)", (event,site,str(date),round,white_name,black_name,outcome,uploader_id,white_id,black_id,time,time_add,pgn))
@@ -160,6 +187,6 @@ def postReplay(pgn,time="NULL",time_add="NULL",white_id="NULL",black_id="NULL",u
 def removeReplays(id):
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-    c.execute("delete from games where white=? or black=?",(id,id))
+    c.execute("delete from games where white=? or black=? or uploader=?",(id,id,id))
     conn.commit()
     conn.close()

@@ -42,20 +42,14 @@ class Users(Resource):
         if userData == None:
             return {'message': "User doesn't exist!"}, 404
         if str(get_jwt_identity())!=str(id):
-            return {'message':"Access denied!"}, 403
+            return {'message':"Access denied!",'where':'elsewhere'}, 403
         else:
-            parser = reqparse.RequestParser()
-            parser.add_argument('name', type=str,required=False, location='form',help='Invalid name')
-            parser.add_argument('password', type=str,required=False, location='form',help='Invalid password')
-            args = parser.parse_args()
-
-            flag = requests.checkForDuplicates("name",args['name'])
-            if flag == False:
-                return {'message': "Name taken"}, 400
-
-            requests.editUser(id,name=args['name'],password=args['password'])
+            args = request.form.to_dict()
+            result=requests.changePassword(id,args['oldpass'],args['newpass'])
+            if result==False:
+                return {'message':"Wrong password!",'where':"password"}, 403
             userData = requests.getUser(id)
-            return {'message':'success','userdata':userData},201
+            return {'message':'success'},201
 
     def delete(self,id):
         try:
@@ -143,25 +137,33 @@ class OfferList(Resource):
             return {'message': "Authorization error"}, 401
         except ExpiredSignatureError:
             return {'message': "Signature expired"}, 401
-        parser = reqparse.RequestParser()
-        parser.add_argument('owner', type=str, location='args')
-        parser.add_argument('min_time', type=int, location='args')
-        parser.add_argument('max_time', type=int, location='args')
-        parser.add_argument('min_elo', type=int, location='args')
-        parser.add_argument('max_elo', type=int, location='args')
-        parser.add_argument('color', type=str, location='args')
-        args = parser.parse_args()
+#         parser = reqparse.RequestParser()
+#         parser.add_argument('owner', type=str, location='args')
+#         parser.add_argument('min_time', type=int, location='args')
+#         parser.add_argument('max_time', type=int, location='args')
+#         parser.add_argument('min_elo', type=int, location='args')
+#         parser.add_argument('max_elo', type=int, location='args')
+#         parser.add_argument('color', type=str, location='args')
+#         args = parser.parse_args()
+        args=request.args.to_dict()
         outcome = []
         for offer in offers.offerList:
             flag=True
-            if args['owner'] != None and args['owner'] == offer.owner_name: flag = False
-            if args['min_time'] != None and args['min_time'] > offer.time: flag = False
-            if args['max_time'] != None and args['max_time'] < offer.time: flag = False
-            if args['min_elo'] != None and args['min_elo'] > offer.elo: flag = False
-            if args['max_elo'] != None and args['max_elo'] < offer.elo: flag = False
-            if args['color'] != None and args['owner'] == offer.color: flag = False
+            if 'owner' in args and args['owner'] == offer.owner_name: flag = False
+            if 'exclude' in args and 's' in args['exclude'] and offer.type=='standard': flag = False
+            if 'exclude' in args and 'b' in args['exclude'] and offer.type=='blitz': flag = False
+            if 'exclude' in args and 'l' in args['exclude'] and offer.type=='lightning': flag = False
+            try:
+                if 'min_elo' in args and int(args['min_elo']) > offer.elo: flag = False
+            except ValueError:
+                pass
+            try:
+                if 'max_elo' in args and int(args['max_elo']) < offer.elo: flag = False
+            except ValueError:
+                pass
+            if 'color' in args and args['color'] in ['black','white','random'] and args['owner'] == offer.color: flag = False
             if flag: outcome.append(offer.dict())
-        return {'message':"Success!",'offerlist':outcome},200
+        return {'message':"Success!",'list':outcome},200
 
     def post(self):
         try:
@@ -173,14 +175,18 @@ class OfferList(Resource):
         except ExpiredSignatureError:
             return {'message': "Signature expired"}, 401
         owner_id=get_jwt_identity()
-        parser = reqparse.RequestParser()
-        parser.add_argument('time', type=int,required=False, location='form',help="Invalid argument")
-        parser.add_argument('time_add', type=int,required=False, location='form',help="Invalid argument")
-        parser.add_argument('color', type=str,required=False, location='form',help="Invalid argument")
-        args = parser.parse_args()
+        args=request.form.to_dict()
+        time=None
+        time_add=None
+        color='random'
 
-        if args['time']==None and args['time_add']!=None: args['time_add']=None
-        offer=Offer(owner_id,args['time'],args['time_add'],args['color'])
+        if 'time' in args and args['time']!=None and int(args['time'])>0:
+            time=args['time']
+        if time!=None and 'time_add' in args and args['time_add']!=None and int(args['time_add'])>0:
+            time_add=args['time_add']
+        if 'color' in args and args['color'] in ['black','white']:
+            color=args['color']
+        offer=Offer(owner_id,time,time_add,color)
         offers.offerList.append(offer)
         return {'message': "Success!",'offer':offer.dict()}, 201
 class Offers(Resource):
@@ -246,9 +252,9 @@ class ReplayList(Resource):
         try:
             id=requests.postReplay(pgn=args['pgn'],uploader_id=get_jwt_identity())
         except IntegrityError:
-            return {'message':"PGN incorrect or identical one was already uploaded!","where":"text"}, 400
+            return {'message':"PGN is incorrect or identical one is already uploaded!","where":"text"}, 400
         except ValueError:
-            return {'message':"PGN incorrect!","where":"text"}, 400
+            return {'message':'PGN contains illegal or ambiguous moves!',"where":"text"}, 400
         if isinstance(id,str) and "Missing Tag: " in id:
             return {'message':id,"where":"text"}, 400
         if id==None:

@@ -92,13 +92,14 @@ export const Register = () => {
                 <TextField
                     size='small'
                     label="E-Mail"
+                    type='email'
                     variant='outlined'
                     value={email}
                     error={mailError}
                     helperText={msgMail}
                     onChange={handleMailChange}
                 /><br/><br/>
-                <Button variant="outlined" type="submit" onClick={handleSubmit}>Sign up</Button>
+                <Button color='primary' variant="contained" type="submit" onClick={handleSubmit}>Sign up</Button>
                 {ret}
             </form>
         </div>

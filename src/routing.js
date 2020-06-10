@@ -1,13 +1,13 @@
 import React from 'react'
 import {Switch, Route} from 'react-router-dom';
 import {Users} from './users';
-import {User} from './user';
-import {Login} from './login';
+import {User,Profile} from './user';
+import {Login,Logout} from './login';
 import {Register} from './register';
 import {Replays} from './replays';
-import {Replay,UploadReplay} from './replay';
-import {NotFound,Unauthorized,OtherError} from './errors'
-
+import {Offers} from './offers';
+import {Replay} from './replay';
+import {NotFound,Unauthorized,OtherError} from './errors';
 export const Routing = () => {
     return(
         <>
@@ -22,16 +22,13 @@ export const Routing = () => {
                     <User/>
                 </Route>
                 <Route path="/offers">
-                    Offers
+                    <Offers/>
                 </Route>
                 <Route exact path="/replays">
                     <Replays/>
                 </Route>
                 <Route path="/replays/:id">
                     <Replay/>
-                </Route>
-                <Route path="/replay_upload">
-                    <UploadReplay/>
                 </Route>
                 <Route path="/login">
                     <Login/>
@@ -47,6 +44,12 @@ export const Routing = () => {
                 </Route>
                 <Route path="/error">
                     <OtherError/>
+                </Route>
+                <Route path="/profile">
+                    <Profile/>
+                </Route>
+                <Route path="/logout">
+                    <Logout/>
                 </Route>
                 <Route>
                     404: Not found :(

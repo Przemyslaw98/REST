@@ -11,6 +11,7 @@ import {FirstPage,LastPage,NavigateBefore,NavigateNext,Autorenew} from "@materia
 import Grid from "@material-ui/core/Grid";
 import { Container } from '@material-ui/core';
 import Typography from "@material-ui/core/Typography";
+import Dialog from "@material-ui/core/Dialog";
 
 
 const useStyles = makeStyles((theme) => ({
@@ -51,7 +52,7 @@ export const Replay=()=>{
         setCurrentMove(FENlist.length-1);
     };
     const flip = (event) => {
-        if (side=='w')
+        if (side==='w')
             setSide('b');
         else setSide('w');
     };
@@ -63,11 +64,13 @@ export const Replay=()=>{
             <Grid container>
                 <Grid item xs={12}>
                     <Chessboard
+                        blackSquareColour="#306000"
+                        whiteSquareColour="ffffff"
                         width={'100%'}
                         orientation={side}
                         fen={position}
                         style={{
-                            border: '2px solid lightgrey',
+                            border: '2px solid green',
                         }}
                     />
                 </Grid>
@@ -94,25 +97,42 @@ export const Replay=()=>{
     );
 }
 
-export const UploadReplay = () => {
-    const classes = useStyles();
+export const Upload = (props) => {
+    const { onClose, open } = props;
     const [error,setError]=React.useState(false);
     const [msg,setMsg]=React.useState(' ');
     const [pgn,setPgn]=React.useState('');
     const handleChange=(event)=>{
         setPgn(event.target.value);
     }
+    const handleClose = () => {
+        onClose();
+    };
     const uploadReplay = (event) => {
         postReplay(pgn,history,setError,setMsg)
     };
     const history = useHistory();
 
     return (
-        <div className={classes.root}>
-            Paste text in PGN format, then click Upload.
-            <Button variant="outlined" onClick={uploadReplay}>Upload</Button>
+        <Dialog PaperProps={{style: {backgroundColor: '#80ff00'}}} maxWidth='md' fullWidth onClose={handleClose} open={open}>
             <br/>
-            <TextField error={error} helperText={msg} value={pgn} onChange={handleChange} fullWidth rows={15} variant="outlined" multiline />
-        </div>
+            <Grid container direction='column' alignItems="center">
+                <Grid item xs>
+                    <Typography>Paste text in PGN format, then click Upload.</Typography>
+                </Grid>
+                <Grid item xs>
+                    <Button color='primary' variant="contained" onClick={uploadReplay}>Upload</Button>
+                </Grid>
+            </Grid>
+            <Grid container alignItems="center">
+                <Grid item xs>
+                </Grid>
+                <Grid item xs={10}>
+                    <TextField error={error} helperText={msg} value={pgn} onChange={handleChange} fullWidth rows={15} variant="outlined" multiline />
+                </Grid>
+                <Grid item xs>
+                </Grid>
+            </Grid>
+        </Dialog>
     );
 }

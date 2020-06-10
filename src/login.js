@@ -13,6 +13,14 @@ const useStyles = makeStyles((theme) => ({
     },
 }));
 
+export const Logout=()=>{
+    const history=useHistory();
+    React.useEffect(() => {
+        localStorage.removeItem('token');
+        history.push('/login')
+    });
+    return null;
+}
 export const Login = () => {
     const classes = useStyles();
     const history=useHistory();
@@ -65,7 +73,7 @@ export const Login = () => {
                     helperText={msgPass}
                     onChange={handlePassChange}
                 /><br/><br/>
-                <Button variant="outlined" type="submit" onClick={handleSubmit}>Sign in</Button>
+                <Button color='primary' variant="contained" type="submit" onClick={handleSubmit}>Sign in</Button>
                 {ret}
             </form>
         </div>

@@ -29,10 +29,10 @@ class Offer:
         conn.close()
 
         self.owner_name=ownerData[0]
-        if time==None or time>600:
+        if time==None or int(time)>600:
             self.type="standard"
             self.elo=ownerData[1]
-        elif time>180:
+        elif int(time)>180:
             self.type="blitz"
             self.elo = ownerData[2]
         else:

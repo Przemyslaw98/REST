@@ -7,6 +7,7 @@ import queryString from 'query-string';
 import TextField from "@material-ui/core/TextField";
 import Button from "@material-ui/core/Button";
 import Grid from "@material-ui/core/Grid";
+import Hidden from '@material-ui/core/Hidden';
 import Typography from '@material-ui/core/Typography';
 
 const useStyles = makeStyles((theme) => ({
@@ -25,7 +26,7 @@ export const Users = () => {
     const [page, setPage] = React.useState(1);
     const [range,setRange] = React.useState(1);
     const [query,setQuery] = React.useState(queryString.parse(window.location.search));
-    const [username, setUsername] = React.useState(queryString.parse(window.location.search).name);
+    const [username, setUsername] = React.useState('');
     const handleNameChange = (event) => {
         setUsername(event.target.value);
     };
@@ -35,13 +36,15 @@ export const Users = () => {
     };
     const handleSubmit=(event)=>{
         event.preventDefault();
-        var string='';
-        if(username!=='')
-            string+='name='+username;
-        if(string!=='')
-            string='?'+string;
-        history.push('/users'+string);
-        setQuery(queryString.parse(string))
+        var q={};
+        var s='';
+        if(username!=='') {
+            q.name = username;
+            s='?'+queryString.stringify(q);
+        }
+        setQuery(q);
+        history.push('/users'+s);
+
     };
     React.useEffect(() => {
         getUserList(queryString.stringify(query),setUserList,history,setRange,page,setListFragment);
@@ -52,27 +55,30 @@ export const Users = () => {
                 <br/>
                 <TextField
                     size='small'
+                    placeholder='Name'
                     variant='outlined'
                     value={username}
                     onChange={handleNameChange}
                 />
-                <Button variant="outlined" type="submit" onClick={handleSubmit}>Search</Button>
+                <Button color='primary' variant="contained" type="submit" onClick={handleSubmit}>Search</Button>
             </form><br/><br/>
-            <Grid container>
-                <Grid item xs>
-                    Name
-                </Grid>
-                <Grid item xs>
-                    Last Seen
-                </Grid>
-                <Grid item xs>
-                    Elo rating
-                </Grid>
-                <Grid item xs>
+            <Hidden xsDown>
+                <Grid container>
+                    <Grid item xs>
+                        <Typography variant='h5'>Name</Typography>
+                    </Grid>
+                    <Grid item xs>
+                        <Typography variant='h5'>Last Seen</Typography>
+                    </Grid>
+                    <Grid item xs>
+                        <Typography variant='h5'>Elo rating</Typography>
+                    </Grid>
+                    <Grid item xs>
 
+                    </Grid>
+                    <br/><br/>
                 </Grid>
-                <br/><br/>
-            </Grid>
+            </Hidden>
             {listFragment}
             <Pagination count={range} shape="rounded" color="primary" page={page} onChange={handlePageChange}/>
         </div>
